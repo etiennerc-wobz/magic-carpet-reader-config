@@ -1,0 +1,5 @@
+serial_port_name : '/dev/ttyS0'
+serial_port_baud_rate : 115200
+
+start_inventory_cmd : "c8 8c 00 0a 82 27 10 bf 0d 0a"
+stop_inventory_cmd : "c8 8c 00 08 8c 84 0d 0a"

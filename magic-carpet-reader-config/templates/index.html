@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID Reader</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Configuration du lecteur RFID</h1>
+    <div>
+        <button id="reset_reader">Reset Reader</button>
+        <button id="clear_inventory">Effacer l'inventaire</button>
+    </div>
+    <div>
+        <h2>Valeur de puissance actuelle: <span id="power_value">{{ power_value }}</span></h2>
+        <form id="set_power_form">
+            <input type="number" name="power" placeholder="Nouvelle puissance (dBm)" required>
+            <button type="submit">Mettre à jour la puissance</button>
+        </form>
+    </div>
+
+    <div>
+        <button id="toggle_inventory">Démarrer l'inventaire</button>
+    </div>
+
+    <h2>Tags RFID détectés</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Numéro</th>
+                <th>EPC</th>
+                <th>RSSI</th>
+                <th>Compteur</th>
+            </tr>
+        </thead>
+        <tbody id="tags_table">
+            {% for tag in tags %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ tag['epc'] }}</td>
+                <td>{{ tag['rssi'] }}</td>
+                <td>{{ tag['count'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        $(document).ready(function() {
+            let inventory_running = false;
+
+            $('#set_power_form').on('submit', function(e) {
+                e.preventDefault();
+                $.post('/set_power', $(this).serialize(), function(response) {
+                    if (response.success) {
+                        alert('Puissance mise à jour !');
+                        updatePower();
+                    }
+                });
+            });
+
+            $('#toggle_inventory').on('click', function() {
+                $.post('/toggle_inventory', function(response) {
+                    if (response.success) {
+                        if ($('#toggle_inventory').text() === 'Démarrer l\'inventaire') {
+                            $('#toggle_inventory').text('Arrêter l\'inventaire');
+                            inventory_running = true;
+                        } else {
+                            $('#toggle_inventory').text('Démarrer l\'inventaire');
+                            inventory_running = false; 
+                        }
+                    }
+                });
+            });
+
+            $('#reset_reader').on('click', function() {
+                $.post('/reset_reader', function(response) {
+                    if (response.success) {
+                        alert('Lecteur redamarré !');
+
+                    }
+                });
+            });
+
+            $('#clear_inventory').on('click', function() {
+                $.post('/clear_inventory', function(response) {
+                    if (response.success) {
+                        alert('Inventaire effacé !');
+                        $('#tags_table').empty(); // Vider le tableau après effacement
+                    }
+                });
+            });
+
+            // Fonction pour mettre à jour la valeur de la puissance
+            function updatePower() {
+                $.get('/get_power', function(data) {
+                    $('#power_value').text(data.power);
+                });
+            }
+            // Optionnel: mettre à jour les tags en temps réel
+            setInterval(function() {
+                if (inventory_running) {
+                    $.get('/get_inventory', function(data) {
+                        $('#tags_table').empty();
+                        console.log(data);
+                        data.tags.forEach(function(tag, index) {
+                            $('#tags_table').append(`
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${tag.epc}</td>
+                                    <td>${tag.rssi}</td>
+                                    <td>${tag.counter}</td>
+                                </tr>
+                            `);
+                        });
+                    });
+                }
+            }, 500); // Met à jour toutes les 0,5 secondes
+        });
+    </script>
+
+</body>
+</html>
