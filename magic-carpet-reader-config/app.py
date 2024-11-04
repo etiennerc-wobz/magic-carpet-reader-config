@@ -19,10 +19,11 @@ tags = []
 @app.route('/')
 def index():
     power_value = rfid_reader.get_power()  # Récupérer la puissance actuelle
+    rssi_filter_value = rfid_reader.get_rssi_filter_value()
     if power_value != None : 
-        return render_template('index.html', power_value=power_value['decoded_data']['read_power'], tags=tags)
+        return render_template('index.html', power_value=power_value['decoded_data']['read_power'], tags=tags, rssi_value=rssi_filter_value)
     else : 
-        return render_template('index.html', tags=tags)
+        return render_template('index.html', tags=tags, rssi_value=rssi_filter_value)
 
 @app.route('/get_power', methods=['GET'])
 def get_power():
@@ -59,6 +60,18 @@ def get_inventory():
 @app.route('/clear_inventory', methods=['POST'])
 def clear_inventory():
     rfid_reader.inventory_list.clear()  # Efface les valeurs dans inventory_list
+    return jsonify(success=True)
+
+@app.route('/get_rssi_filter_value', methods=['GET'])
+def get_rssi_filter_value():
+    rssi_filter_value = rfid_reader.get_rssi_filter_value()  # Efface les valeurs dans inventory_list
+    print(f'get_rssi_filter_value return : {rssi_filter_value} ')
+    return jsonify(rssi_filter_value=rssi_filter_value)
+
+@app.route('/set_rssi_filter_value', methods=['POST'])
+def set_rssi_filter_value():
+    new_rssi_filter_value = int(request.form['rssi'])
+    rfid_reader.set_rssi_filter_value(new_rssi_filter_value)
     return jsonify(success=True)
 
 # Lancer le serveur Flask

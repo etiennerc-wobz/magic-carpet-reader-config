@@ -66,11 +66,15 @@ class ChainwayReaderInterface:
         self.frame_tail = b'\r\n'
 
         self.inventory_loop_enable = False
-        self.inventory_loop_thread = None
+        self.inventory_loop_thread = 0
 
         self.inventory_list = []
 
+        self.rssi_filter_value = -100
+
+        time.sleep(0.5)
         self.serialPort.reset_input_buffer()
+        time.sleep(0.5)
         self.serialPort.reset_output_buffer()
 
 
@@ -323,7 +327,7 @@ class ChainwayReaderInterface:
         Fonction pour lancer la lecture de tag en continu
         """
         number_1 = 0x00
-        number_2 = 0x00
+        number_2 = 0x01
         data = struct.pack('B', number_1) + struct.pack('B', number_2)
         frame = self.build_frame(self.Commands.START_INVENTORY, data)
         self.serialPort.write(frame)
@@ -378,7 +382,7 @@ class ChainwayReaderInterface:
             frame = self.serialPort.read_until(self.frame_tail)
             if frame :
                 self.decode_inventory_data(frame)
-            time.sleep(0.1)
+            time.sleep(0.01)
         self.stop_inventory()
 
     def decode_inventory_data(self, frame: bytes):
@@ -400,18 +404,23 @@ class ChainwayReaderInterface:
             rssi_value = struct.unpack('>h', rssi_bytes)[0]  # RSSI en dBm * 10 (signed 16-bit)
             rssi = rssi_value / 10.0  # Conversion en dBm réel
             antenna = data[16]
-            print(f"Tag EPC: {epc}, RSSI: {rssi}")
-
-            # Vérifier si le tag EPC existe déjà dans inventory_list, sinon l'ajouter
-            tag_exists = False
-            for tag in self.inventory_list:
-                if tag['epc'] == epc:
-                    tag['rssi'] = rssi
-                    tag['counter'] += 1
-                    tag_exists = True
-                    break
-            if not tag_exists:
-                self.inventory_list.append({'epc': epc, 'rssi': rssi, 'counter': 1})
+            if (rssi >= self.rssi_filter_value):
+                print(f"Tag EPC: {epc}, RSSI: {rssi}")
+                # Vérifier si le tag EPC existe déjà dans inventory_list, sinon l'ajouter
+                tag_exists = False
+                for tag in self.inventory_list:
+                    if tag['epc'] == epc:
+                        if rssi < tag['rssi_min'] : 
+                            tag['rssi_min'] = rssi
+                        if rssi > tag['rssi_max'] :
+                            tag['rssi_max'] = rssi
+                        tag['rssi'] = rssi
+                        tag['rssi_mean'] = (tag['counter']*tag['rssi'] + rssi) / (tag['counter']+1)
+                        tag['counter'] += 1
+                        tag_exists = True
+                        break
+                if not tag_exists:
+                    self.inventory_list.append({'epc': epc, 'rssi': rssi,'rssi_mean': rssi, 'rssi_min': rssi, 'rssi_max': rssi, 'counter': 1})
 
 
     def get_inventory(self):
@@ -423,6 +432,13 @@ class ChainwayReaderInterface:
         """
         result = self.send_command(self.Commands.RESET_SOFTWARE)
         return result
+    
+    def set_rssi_filter_value(self,value):
+        self.rssi_filter_value = value
+        return
+    
+    def get_rssi_filter_value(self):
+        return self.rssi_filter_value
     
 if __name__ == "__main__":
     rfid_reader = ChainwayReaderInterface()  # Remplacer par le port série correct

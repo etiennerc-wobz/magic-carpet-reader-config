@@ -9,22 +9,27 @@
 <body>
     <h1>Configuration du lecteur RFID</h1>
     <div>
+        <h2>Commandes</h1>
         <button id="reset_reader">Reset Reader</button>
-        <button id="clear_inventory">Effacer l'inventaire</button>
-    </div>
     <div>
-        <h2>Valeur de puissance actuelle: <span id="power_value">{{ power_value }}</span></h2>
+        <h2>Puissance</h2>
+        <h3>Valeur de puissance actuelle: <span id="power_value">{{ power_value }}</span></h3>
         <form id="set_power_form">
             <input type="number" name="power" placeholder="Nouvelle puissance (dBm)" required>
-            <button type="submit">Mettre à jour la puissance</button>
+            <button type="submit">MaJ puissance</button>
         </form>
     </div>
 
+    <h2>Inventaire tags RFID</h2>
+    <h3>Valeur du filtre RSSI actuelle: <span id="rssi_value">{{ rssi_value }}</span></h3>
+    <form id="set_rssi_form">
+        <input type="number" name="rssi" placeholder="Nouvelle puissance (dBm)" required>
+        <button type="submit">Mettre à jour le filtre RSSI</button>
+    </form>
     <div>
         <button id="toggle_inventory">Démarrer l'inventaire</button>
+        <button id="clear_inventory">Effacer l'inventaire</button>
     </div>
-
-    <h2>Tags RFID détectés</h2>
     <table border="1">
         <thead>
             <tr>
@@ -32,6 +37,9 @@
                 <th>EPC</th>
                 <th>RSSI</th>
                 <th>Compteur</th>
+                <th>Moyenne RSSI</th>
+                <th>RSSI Min</th>
+                <th>RSSI Max</th>
             </tr>
         </thead>
         <tbody id="tags_table">
@@ -41,6 +49,9 @@
                 <td>{{ tag['epc'] }}</td>
                 <td>{{ tag['rssi'] }}</td>
                 <td>{{ tag['count'] }}</td>
+                <td>{{ tag['rssi_mean'] }}</td>
+                <td>{{ tag['rssi_min'] }}</td>
+                <td>{{ tag['rssi_max'] }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -57,6 +68,13 @@
                         alert('Puissance mise à jour !');
                         updatePower();
                     }
+                });
+            });
+
+            $('#set_rssi_form').on('submit', function(e) {
+                e.preventDefault();
+                $.post('/set_rssi_filter_value', $(this).serialize(), function(response) {
+                    updateRssiFilterValue();
                 });
             });
 
@@ -98,6 +116,13 @@
                     $('#power_value').text(data.power);
                 });
             }
+
+            function updateRssiFilterValue() {
+                $.get('/get_rssi_filter_value', function(data) {
+                    console.log(data)
+                    $('#rssi_value').text(data.rssi_filter_value);
+                });
+            }
             // Optionnel: mettre à jour les tags en temps réel
             setInterval(function() {
                 if (inventory_running) {
@@ -111,6 +136,9 @@
                                     <td>${tag.epc}</td>
                                     <td>${tag.rssi}</td>
                                     <td>${tag.counter}</td>
+                                    <td>${tag.rssi_mean.toFixed(2)}</td>
+                                    <td>${tag.rssi_min}</td>
+                                    <td>${tag.rssi_max}</td>
                                 </tr>
                             `);
                         });
